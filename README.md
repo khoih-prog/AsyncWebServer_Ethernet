@@ -1603,7 +1603,7 @@ alt-svc: h3=":443"; ma=86400, h3-29=":443"; ma=86400
 The following are debug terminal output and screen shot when running example [Async_AdvancedWebServer](examples/Async_AdvancedWebServer) on **ESP8266_NODEMCU_ESP12E** with `ESP8266_ENC28J60` Ethernet
 
 <p align="center">
-    <img src="https://github.com/khoih-prog/EthernetWebServer/blob/master/pics/Async_AdvancedWebServer_ENC28J60.png">
+    <img src="https://github.com/khoih-prog/AsyncWebServer_Ethernet/blob/main/pics/Async_AdvancedWebServer_ENC28J60.png">
 </p>
 
 ```
@@ -1621,7 +1621,7 @@ HTTP EthernetWebServer is @ IP : 192.168.2.187
 The following are debug terminal output and screen shot when running example [Async_AdvancedWebServer](examples/Async_AdvancedWebServer) on **ESP8266_NODEMCU_ESP12E** with `ESP8266_W5500` Ethernet
 
 <p align="center">
-    <img src="https://github.com/khoih-prog/EthernetWebServer/blob/master/pics/Async_AdvancedWebServer_W5500.png">
+    <img src="https://github.com/khoih-prog/AsyncWebServer_Ethernet/blob/main/pics/Async_AdvancedWebServer_W5500.png">
 </p>
 
 ```
