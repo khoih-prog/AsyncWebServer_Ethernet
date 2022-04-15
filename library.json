@@ -1,0 +1,38 @@
+{
+  "name":"AsyncWebServer_Ethernet",
+  "version": "1.4.1",
+  "description":"Asynchronous HTTP and WebSocket Server Library for ESP8266 using W5x00 or ENC28J60 Ethernet. This is Asynchronous HTTP and WebSocket Server Library for ESP8266 using W5x00 or ENC28J60 Ethernet with lwIP_5100, lwIP_5500 or lwIP_enc28j60 library",
+  "keywords":"http, async, async-webserver, websocket, webserver, esp8266, w5x00, enc28j60",
+  "authors": 
+  [
+    {
+      "name": "Hristo Gochkov",
+      "url":   "https://github.com/me-no-dev"
+    },
+    {
+      "name":  "Khoi Hoang",
+      "url":   "https://github.com/khoih-prog",
+      "email": "khoih.prog@gmail.com",
+      "maintainer": true
+    }  
+  ],
+  "repository":
+  {
+    "type": "git",
+    "url": "https://github.com/khoih-prog/AsyncWebServer_Ethernet"
+  },
+  "dependencies": 
+  [
+    {
+      "owner": "me-no-dev",
+      "name": "ESPAsyncTCP",
+      "version": ">=1.2.2",
+      "platforms": ["espressif8266"]
+    }
+  ],
+  "license": "LGPL-3.0",
+  "frameworks": "arduino",
+  "platforms": ["espressif8266"],
+  "examples": "examples/*/*/*.ino",
+  "headers": "AsyncWebServer_Ethernet.h"
+}
