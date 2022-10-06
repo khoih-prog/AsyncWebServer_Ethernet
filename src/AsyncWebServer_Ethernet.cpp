@@ -12,22 +12,30 @@
   as published bythe Free Software Foundation, either version 3 of the License, or (at your option) any later version.
   This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
-  You should have received a copy of the GNU General Public License along with this program.  If not, see <https://www.gnu.org/licenses/>.  
+  You should have received a copy of the GNU General Public License along with this program.
+  If not, see <https://www.gnu.org/licenses/>.  
  
-  Version: 1.4.1
+  Version: 1.5.0
 
   Version Modified By   Date      Comments
   ------- -----------  ---------- -----------
   1.4.1   K Hoang      18/03/2022 Initial coding for ESP8266 using W5x00/ENC8266 Ethernet.
                                   Bump up version to v1.4.1 to sync with AsyncWebServer_STM32 v1.4.1
+  1.5.0   K Hoang      05/10/2022 Option to use non-destroyed cString instead of String to save Heap
  *****************************************************************************************************************************/
 
-#define _AWS_ETHERNET_LOGLEVEL_     1
+#if !defined(_AWS_ETHERNET_LOGLEVEL_)
+  #define _AWS_ETHERNET_LOGLEVEL_     1
+#endif
+
+/////////////////////////////////////////////////
 
 #include "AsyncWebServer_Ethernet_Debug.h"
 
 #include "AsyncWebServer_Ethernet.hpp"
 #include "AsyncWebHandlerImpl_Ethernet.h"
+
+/////////////////////////////////////////////////
 
 AsyncWebServer::AsyncWebServer(uint16_t port)
   : _server(port), _rewrites(LinkedList<AsyncWebRewrite * >([](AsyncWebRewrite * r)
@@ -49,7 +57,11 @@ AsyncWebServer::AsyncWebServer(uint16_t port)
     if (c == NULL)
       return;
 
-    c->setRxTimeout(3);
+    // KH set no RxTimeout for slower Firefox / network
+    //c->setRxTimeout(3);
+    c->setRxTimeout(0);
+    //////
+    
     AsyncWebServerRequest *r = new AsyncWebServerRequest((AsyncWebServer*)s, c);
 
     if (r == NULL)
@@ -61,6 +73,8 @@ AsyncWebServer::AsyncWebServer(uint16_t port)
   }, this);
 }
 
+/////////////////////////////////////////////////
+
 AsyncWebServer::~AsyncWebServer()
 {
   reset();
@@ -70,6 +84,8 @@ AsyncWebServer::~AsyncWebServer()
     delete _catchAllHandler;
 }
 
+/////////////////////////////////////////////////
+
 AsyncWebRewrite& AsyncWebServer::addRewrite(AsyncWebRewrite* rewrite)
 {
   _rewrites.add(rewrite);
@@ -77,15 +93,21 @@ AsyncWebRewrite& AsyncWebServer::addRewrite(AsyncWebRewrite* rewrite)
   return *rewrite;
 }
 
+/////////////////////////////////////////////////
+
 bool AsyncWebServer::removeRewrite(AsyncWebRewrite *rewrite)
 {
   return _rewrites.remove(rewrite);
 }
 
+/////////////////////////////////////////////////
+
 AsyncWebRewrite& AsyncWebServer::rewrite(const char* from, const char* to)
 {
   return addRewrite(new AsyncWebRewrite(from, to));
 }
+
+/////////////////////////////////////////////////
 
 AsyncWebHandler& AsyncWebServer::addHandler(AsyncWebHandler* handler)
 {
@@ -93,10 +115,14 @@ AsyncWebHandler& AsyncWebServer::addHandler(AsyncWebHandler* handler)
   return *handler;
 }
 
+/////////////////////////////////////////////////
+
 bool AsyncWebServer::removeHandler(AsyncWebHandler *handler)
 {
   return _handlers.remove(handler);
 }
+
+/////////////////////////////////////////////////
 
 void AsyncWebServer::begin()
 {
@@ -104,10 +130,14 @@ void AsyncWebServer::begin()
   _server.begin();
 }
 
+/////////////////////////////////////////////////
+
 void AsyncWebServer::end()
 {
   _server.end();
 }
+
+/////////////////////////////////////////////////
 
 #if ASYNC_TCP_SSL_ENABLED
 void AsyncWebServer::onSslFileRequest(AcSSlFileHandler cb, void* arg)
@@ -115,16 +145,22 @@ void AsyncWebServer::onSslFileRequest(AcSSlFileHandler cb, void* arg)
   _server.onSslFileRequest(cb, arg);
 }
 
+/////////////////////////////////////////////////
+
 void AsyncWebServer::beginSecure(const char *cert, const char *key, const char *password)
 {
   _server.beginSecure(cert, key, password);
 }
 #endif
 
+/////////////////////////////////////////////////
+
 void AsyncWebServer::_handleDisconnect(AsyncWebServerRequest *request)
 {
   delete request;
 }
+
+/////////////////////////////////////////////////
 
 void AsyncWebServer::_rewriteRequest(AsyncWebServerRequest *request)
 {
@@ -137,6 +173,8 @@ void AsyncWebServer::_rewriteRequest(AsyncWebServerRequest *request)
     }
   }
 }
+
+/////////////////////////////////////////////////
 
 void AsyncWebServer::_attachHandler(AsyncWebServerRequest *request)
 {
@@ -153,6 +191,7 @@ void AsyncWebServer::_attachHandler(AsyncWebServerRequest *request)
   request->setHandler(_catchAllHandler);
 }
 
+/////////////////////////////////////////////////
 
 AsyncCallbackWebHandler& AsyncWebServer::on(const char* uri, WebRequestMethodComposite method, ArRequestHandlerFunction onRequest,
                                             ArUploadHandlerFunction onUpload, ArBodyHandlerFunction onBody)
@@ -169,7 +208,10 @@ AsyncCallbackWebHandler& AsyncWebServer::on(const char* uri, WebRequestMethodCom
   return *handler;
 }
 
-AsyncCallbackWebHandler& AsyncWebServer::on(const char* uri, WebRequestMethodComposite method, ArRequestHandlerFunction onRequest, ArUploadHandlerFunction onUpload)
+/////////////////////////////////////////////////
+
+AsyncCallbackWebHandler& AsyncWebServer::on(const char* uri, WebRequestMethodComposite method, ArRequestHandlerFunction onRequest,
+                                            ArUploadHandlerFunction onUpload)
 {
   AsyncCallbackWebHandler* handler = new AsyncCallbackWebHandler();
   handler->setUri(uri);
@@ -180,6 +222,8 @@ AsyncCallbackWebHandler& AsyncWebServer::on(const char* uri, WebRequestMethodCom
 
   return *handler;
 }
+
+/////////////////////////////////////////////////
 
 AsyncCallbackWebHandler& AsyncWebServer::on(const char* uri, WebRequestMethodComposite method, ArRequestHandlerFunction onRequest)
 {
@@ -192,6 +236,8 @@ AsyncCallbackWebHandler& AsyncWebServer::on(const char* uri, WebRequestMethodCom
   return *handler;
 }
 
+/////////////////////////////////////////////////
+
 AsyncCallbackWebHandler& AsyncWebServer::on(const char* uri, ArRequestHandlerFunction onRequest)
 {
   AsyncCallbackWebHandler* handler = new AsyncCallbackWebHandler();
@@ -202,15 +248,21 @@ AsyncCallbackWebHandler& AsyncWebServer::on(const char* uri, ArRequestHandlerFun
   return *handler;
 }
 
+/////////////////////////////////////////////////
+
 void AsyncWebServer::onNotFound(ArRequestHandlerFunction fn)
 {
   _catchAllHandler->onRequest(fn);
 }
 
+/////////////////////////////////////////////////
+
 void AsyncWebServer::onRequestBody(ArBodyHandlerFunction fn)
 {
   _catchAllHandler->onBody(fn);
 }
+
+/////////////////////////////////////////////////
 
 void AsyncWebServer::reset()
 {
@@ -224,3 +276,6 @@ void AsyncWebServer::reset()
     _catchAllHandler->onBody(NULL);
   }
 }
+
+/////////////////////////////////////////////////
+

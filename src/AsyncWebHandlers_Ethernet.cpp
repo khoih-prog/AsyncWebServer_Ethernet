@@ -12,22 +12,28 @@
   as published bythe Free Software Foundation, either version 3 of the License, or (at your option) any later version.
   This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
-  You should have received a copy of the GNU General Public License along with this program.  If not, see <https://www.gnu.org/licenses/>.  
+  You should have received a copy of the GNU General Public License along with this program.
+  If not, see <https://www.gnu.org/licenses/>.  
  
-  Version: 1.4.1
+  Version: 1.5.0
 
   Version Modified By   Date      Comments
   ------- -----------  ---------- -----------
   1.4.1   K Hoang      18/03/2022 Initial coding for ESP8266 using W5x00/ENC8266 Ethernet.
                                   Bump up version to v1.4.1 to sync with AsyncWebServer_STM32 v1.4.1
+  1.5.0   K Hoang      05/10/2022 Option to use non-destroyed cString instead of String to save Heap
  *****************************************************************************************************************************/
 
-#define _AWS_ETHERNET_LOGLEVEL_     1
+#if !defined(_AWS_ETHERNET_LOGLEVEL_)
+  #define _AWS_ETHERNET_LOGLEVEL_     1
+#endif
 
 #include "AsyncWebServer_Ethernet_Debug.h"
 
 #include "AsyncWebServer_Ethernet.hpp"
 #include "AsyncWebHandlerImpl_Ethernet.h"
+
+/////////////////////////////////////////////////
 
 AsyncStaticWebHandler::AsyncStaticWebHandler(const char* uri, /*FS& fs,*/ const char* path, const char* cache_control)
   : _uri(uri), _path(path), _cache_control(cache_control), _last_modified(""), _callback(nullptr)
@@ -56,11 +62,15 @@ AsyncStaticWebHandler::AsyncStaticWebHandler(const char* uri, /*FS& fs,*/ const 
   _gzipStats = 0xF8;
 }
 
+/////////////////////////////////////////////////
+
 AsyncStaticWebHandler& AsyncStaticWebHandler::setIsDir(bool isDir)
 {
   _isDir = isDir;
   return *this;
 }
+
+/////////////////////////////////////////////////
 
 AsyncStaticWebHandler& AsyncStaticWebHandler::setCacheControl(const char* cache_control)
 {
@@ -69,12 +79,16 @@ AsyncStaticWebHandler& AsyncStaticWebHandler::setCacheControl(const char* cache_
   return *this;
 }
 
+/////////////////////////////////////////////////
+
 AsyncStaticWebHandler& AsyncStaticWebHandler::setLastModified(const char* last_modified)
 {
   _last_modified = String(last_modified);
 
   return *this;
 }
+
+/////////////////////////////////////////////////
 
 AsyncStaticWebHandler& AsyncStaticWebHandler::setLastModified(struct tm* last_modified)
 {
@@ -84,6 +98,8 @@ AsyncStaticWebHandler& AsyncStaticWebHandler::setLastModified(struct tm* last_mo
 
   return setLastModified((const char *)result);
 }
+
+/////////////////////////////////////////////////
 
 // For Ethernet
 AsyncStaticWebHandler& AsyncStaticWebHandler::setLastModified(time_t last_modified)
@@ -101,6 +117,8 @@ AsyncStaticWebHandler& AsyncStaticWebHandler::setLastModified()
   return setLastModified(last_modified);
 }
 
+/////////////////////////////////////////////////
+
 bool AsyncStaticWebHandler::canHandle(AsyncWebServerRequest *request)
 {
   if (request->method() != HTTP_GET
@@ -114,8 +132,12 @@ bool AsyncStaticWebHandler::canHandle(AsyncWebServerRequest *request)
   return false;
 }
 
+/////////////////////////////////////////////////
+
 // For Ethernet
 #define FILE_IS_REAL(f) (f == true)
+
+/////////////////////////////////////////////////
 
 uint8_t AsyncStaticWebHandler::_countBits(const uint8_t value) const
 {

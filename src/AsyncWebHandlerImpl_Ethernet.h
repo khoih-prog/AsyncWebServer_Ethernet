@@ -12,14 +12,16 @@
   as published bythe Free Software Foundation, either version 3 of the License, or (at your option) any later version.
   This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
-  You should have received a copy of the GNU General Public License along with this program.  If not, see <https://www.gnu.org/licenses/>.  
+  You should have received a copy of the GNU General Public License along with this program.
+  If not, see <https://www.gnu.org/licenses/>.  
  
-  Version: 1.4.1
+  Version: 1.5.0
 
   Version Modified By   Date      Comments
   ------- -----------  ---------- -----------
   1.4.1   K Hoang      18/03/2022 Initial coding for ESP8266 using W5x00/ENC8266 Ethernet.
                                   Bump up version to v1.4.1 to sync with AsyncWebServer_STM32 v1.4.1
+  1.5.0   K Hoang      05/10/2022 Option to use non-destroyed cString instead of String to save Heap
  *****************************************************************************************************************************/
 
 #pragma once
@@ -35,6 +37,8 @@
 
 #include "stddef.h"
 #include <time.h>
+
+/////////////////////////////////////////////////
 
 class AsyncStaticWebHandler: public AsyncWebHandler
 {
@@ -63,6 +67,8 @@ class AsyncStaticWebHandler: public AsyncWebHandler
     AsyncStaticWebHandler& setLastModified(time_t last_modified);
     AsyncStaticWebHandler& setLastModified(); //sets to current time. Make sure sntp is runing and time is updated
 
+    /////////////////////////////////////////////////
+
     AsyncStaticWebHandler& setTemplateProcessor(AwsTemplateProcessor newCallback)
     {
       _callback = newCallback;
@@ -84,30 +90,43 @@ class AsyncCallbackWebHandler: public AsyncWebHandler
   public:
     AsyncCallbackWebHandler() : _uri(), _method(HTTP_ANY), _onRequest(NULL), _onUpload(NULL), _onBody(NULL), _isRegex(false) {}
 
-    void setUri(const String& uri)
+    /////////////////////////////////////////////////
+
+    inline void setUri(const String& uri)
     {
       _uri = uri;
       _isRegex = uri.startsWith("^") && uri.endsWith("$");
     }
 
-    void setMethod(WebRequestMethodComposite method)
+    /////////////////////////////////////////////////
+
+    inline void setMethod(WebRequestMethodComposite method)
     {
       _method = method;
     }
-    void onRequest(ArRequestHandlerFunction fn)
+
+    /////////////////////////////////////////////////
+    
+    inline void onRequest(ArRequestHandlerFunction fn)
     {
       _onRequest = fn;
     }
 
-    void onUpload(ArUploadHandlerFunction fn)
+    /////////////////////////////////////////////////
+
+    inline void onUpload(ArUploadHandlerFunction fn)
     {
       _onUpload = fn;
     }
 
-    void onBody(ArBodyHandlerFunction fn)
+    /////////////////////////////////////////////////
+
+    inline void onBody(ArBodyHandlerFunction fn)
     {
       _onBody = fn;
     }
+
+    /////////////////////////////////////////////////
 
     virtual bool canHandle(AsyncWebServerRequest *request) override final
     {
@@ -155,6 +174,8 @@ class AsyncCallbackWebHandler: public AsyncWebHandler
       return true;
     }
 
+    /////////////////////////////////////////////////
+
     virtual void handleRequest(AsyncWebServerRequest *request) override final
     {
       if (_onRequest)
@@ -163,11 +184,15 @@ class AsyncCallbackWebHandler: public AsyncWebHandler
         request->send(500);
     }
 
+    /////////////////////////////////////////////////
+
     virtual void handleBody(AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total) override final
     {
       if (_onBody)
         _onBody(request, data, len, index, total);
     }
+
+    /////////////////////////////////////////////////
 
     virtual bool isRequestHandlerTrivial() override final
     {

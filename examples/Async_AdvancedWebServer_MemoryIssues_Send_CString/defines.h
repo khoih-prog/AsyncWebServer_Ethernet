@@ -24,9 +24,9 @@
 
 //////////////////////////////////////////////////////////
 
-#define USING_W5500         true
+#define USING_W5500         false
 #define USING_W5100         false
-#define USING_ENC28J60      false
+#define USING_ENC28J60      true
 
 #include <SPI.h>
 

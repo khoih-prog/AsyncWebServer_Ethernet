@@ -17,14 +17,8 @@
   as published bythe Free Software Foundation, either version 3 of the License, or (at your option) any later version.
   This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
-  You should have received a copy of the GNU General Public License along with this program.  If not, see <https://www.gnu.org/licenses/>.  
- 
-  Version: 1.4.1
-
-  Version Modified By   Date      Comments
-  ------- -----------  ---------- -----------
-  1.4.1   K Hoang      18/03/2022 Initial coding for ESP8266 using W5x00/ENC8266 Ethernet.
-                                  Bump up version to v1.4.1 to sync with AsyncWebServer_STM32 v1.4.1
+  You should have received a copy of the GNU General Public License along with this program.
+  If not, see <https://www.gnu.org/licenses/>
  *****************************************************************************************************************************/
 
 #pragma once

@@ -30,10 +30,10 @@ Arduino IDE version: 1.8.19
 ESP8266_NODEMCU_ESP12E using ESP8266_W5500 Ethernet
 ESP8266 core v3.0.2
 OS: Ubuntu 20.04 LTS
-Linux xy-Inspiron-3593 5.13.0-39-generic #44~20.04.1-Ubuntu SMP Thu Mar 24 16:43:35 UTC 2022 x86_64 x86_64 x86_64 GNU/Linux
+Linux xy-Inspiron-3593 5.15.0-48-generic #54~20.04.1-Ubuntu SMP Thu Sep 1 16:17:26 UTC 2022 x86_64 x86_64 x86_64 GNU/Linux
 
 Context:
-I encountered a crash while trying to use the Timer Interrupt.
+I encountered a crash while using this library
 
 Steps to reproduce:
 1. ...

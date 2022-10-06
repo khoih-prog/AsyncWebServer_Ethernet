@@ -18,14 +18,16 @@
   as published bythe Free Software Foundation, either version 3 of the License, or (at your option) any later version.
   This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
-  You should have received a copy of the GNU General Public License along with this program.  If not, see <https://www.gnu.org/licenses/>.  
+  You should have received a copy of the GNU General Public License along with this program.
+  If not, see <https://www.gnu.org/licenses/>.  
  
-  Version: 1.4.1
+  Version: 1.5.0
 
   Version Modified By   Date      Comments
   ------- -----------  ---------- -----------
   1.4.1   K Hoang      18/03/2022 Initial coding for ESP8266 using W5x00/ENC8266 Ethernet.
                                   Bump up version to v1.4.1 to sync with AsyncWebServer_STM32 v1.4.1
+  1.5.0   K Hoang      05/10/2022 Option to use non-destroyed cString instead of String to save Heap
  *****************************************************************************************************************************/
 
 #pragma once
@@ -35,23 +37,31 @@
 
 #include "AsyncWebServer_Ethernet_cbuf.hpp"
 
+/////////////////////////////////////////////////
+
 cbuf::cbuf(size_t size) : next(NULL), _size(size), _buf(new char[size]), _bufend(_buf + size), _begin(_buf), _end(_begin) 
 {
 }
 
+/////////////////////////////////////////////////
+
 cbuf::~cbuf() 
 {
-  delete[] _buf;
+  if (_buf != nullptr)
+    delete[] _buf;
 }
+
+/////////////////////////////////////////////////
 
 size_t cbuf::resizeAdd(size_t addSize) 
 {
   return resize(_size + addSize);
 }
 
+/////////////////////////////////////////////////
+
 size_t cbuf::resize(size_t newSize) 
 {
-
   size_t bytes_available = available();
 
   // not lose any data
@@ -87,6 +97,8 @@ size_t cbuf::resize(size_t newSize)
   return _size;
 }
 
+/////////////////////////////////////////////////
+
 size_t cbuf::available() const 
 {
   if (_end >= _begin) 
@@ -97,10 +109,14 @@ size_t cbuf::available() const
   return _size - (_begin - _end);
 }
 
+/////////////////////////////////////////////////
+
 size_t cbuf::size() 
 {
   return _size;
 }
+
+/////////////////////////////////////////////////
 
 size_t cbuf::room() const 
 {
@@ -112,6 +128,8 @@ size_t cbuf::room() const
   return _begin - _end - 1;
 }
 
+/////////////////////////////////////////////////
+
 int cbuf::peek() 
 {
   if (empty())
@@ -119,6 +137,8 @@ int cbuf::peek()
 
   return static_cast<int>(*_begin);
 }
+
+/////////////////////////////////////////////////
 
 size_t cbuf::peek(char *dst, size_t size) 
 {
@@ -141,6 +161,8 @@ size_t cbuf::peek(char *dst, size_t size)
   return size_read;
 }
 
+/////////////////////////////////////////////////
+
 int cbuf::read() 
 {
   if (empty())
@@ -151,6 +173,8 @@ int cbuf::read()
   
   return static_cast<int>(result);
 }
+
+/////////////////////////////////////////////////
 
 size_t cbuf::read(char* dst, size_t size) 
 {
@@ -174,6 +198,8 @@ size_t cbuf::read(char* dst, size_t size)
   return size_read;
 }
 
+/////////////////////////////////////////////////
+
 size_t cbuf::write(char c) 
 {
   if (full())
@@ -184,6 +210,8 @@ size_t cbuf::write(char c)
   
   return 1;
 }
+
+/////////////////////////////////////////////////
 
 size_t cbuf::write(const char* src, size_t size) 
 {
@@ -207,11 +235,15 @@ size_t cbuf::write(const char* src, size_t size)
   return size_written;
 }
 
+/////////////////////////////////////////////////
+
 void cbuf::flush() 
 {
   _begin = _buf;
   _end = _buf;
 }
+
+/////////////////////////////////////////////////
 
 size_t cbuf::remove(size_t size) 
 {
@@ -220,6 +252,7 @@ size_t cbuf::remove(size_t size)
   if (size >= bytes_available) 
   {
     flush();
+    
     return 0;
   }
   
@@ -236,5 +269,7 @@ size_t cbuf::remove(size_t size)
   
   return available();
 }
+
+/////////////////////////////////////////////////
 
 #endif		// _ASYNC_ETHERNET_CBUF_IMPL_H_

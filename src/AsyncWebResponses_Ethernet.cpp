@@ -12,17 +12,21 @@
   as published bythe Free Software Foundation, either version 3 of the License, or (at your option) any later version.
   This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
-  You should have received a copy of the GNU General Public License along with this program.  If not, see <https://www.gnu.org/licenses/>.  
+  You should have received a copy of the GNU General Public License along with this program.
+  If not, see <https://www.gnu.org/licenses/>.  
  
-  Version: 1.4.1
+  Version: 1.5.0
 
   Version Modified By   Date      Comments
   ------- -----------  ---------- -----------
   1.4.1   K Hoang      18/03/2022 Initial coding for ESP8266 using W5x00/ENC8266 Ethernet.
                                   Bump up version to v1.4.1 to sync with AsyncWebServer_STM32 v1.4.1
+  1.5.0   K Hoang      05/10/2022 Option to use non-destroyed cString instead of String to save Heap                            
  *****************************************************************************************************************************/
 
-#define _AWS_ETHERNET_LOGLEVEL_     1
+#if !defined(_AWS_ETHERNET_LOGLEVEL_)
+  #define _AWS_ETHERNET_LOGLEVEL_     1
+#endif
 
 #include "AsyncWebServer_Ethernet_Debug.h"
 
@@ -208,11 +212,43 @@ void AsyncWebServerResponse::_respond(AsyncWebServerRequest *request)
 
 size_t AsyncWebServerResponse::_ack(AsyncWebServerRequest *request, size_t len, uint32_t time)
 {
-  (void)request;
-  (void)len;
-  (void)time;
+  AWS_ETHERNET_UNUSED(request);
+  AWS_ETHERNET_UNUSED(len);
+  AWS_ETHERNET_UNUSED(time);
+  
   return 0;
 }
+
+////////////////////////////////////////////////
+////////////////////////////////////////////////
+
+//RSMOD///////////////////////////////////////////////
+
+/*
+   String/Code Response
+ * */
+AsyncBasicResponse::AsyncBasicResponse(int code, const String& contentType, const char *content)
+{
+  _code = code;
+  _content = String("");
+  _contentCstr = (char *)content;    // RSMOD
+  _contentType = contentType;
+  _partialHeader = String();
+
+  int iLen;
+
+  if ((iLen = strlen(_contentCstr)))
+  {
+    _contentLength = iLen;
+
+    if (!_contentType.length())
+      _contentType = "text/plain";
+  }
+
+  addHeader("Connection", "close");
+}
+
+/////////////////////////////////////////////////
 
 /*
    String/Code Response
@@ -221,17 +257,40 @@ AsyncBasicResponse::AsyncBasicResponse(int code, const String& contentType, cons
 {
   _code = code;
   _content = content;
+  
+  _contentCstr = nullptr;        // RSMOD
+  
   _contentType = contentType;
+  _partialHeader = String();
 
   if (_content.length())
   {
     _contentLength = _content.length();
+
     if (!_contentType.length())
       _contentType = "text/plain";
   }
 
   addHeader("Connection", "close");
 }
+
+/////////////////////////////////////////////////
+
+// KH add for favicon
+#if 0
+AsyncBasicResponse::AsyncBasicResponse(int code, const String& contentType, const uint8_t * content, size_t len)
+{
+  _code = code;
+  _content = content;
+  _contentType = contentType;
+
+  _contentLength = len;
+
+  addHeader("Connection", "close");
+}
+#endif
+
+/////////////////////////////////////////////////
 
 void AsyncBasicResponse::_respond(AsyncWebServerRequest *request)
 {
@@ -240,68 +299,215 @@ void AsyncBasicResponse::_respond(AsyncWebServerRequest *request)
   size_t outLen = out.length();
   size_t space = request->client()->space();
 
+  LOGDEBUG3("AsyncBasicResponse::_respond : Pre_respond, _contentLength =", _contentLength, ", out =", out );
+  LOGDEBUG3("outLen =", outLen, ", _contentCstr =", _contentCstr);
+
   if (!_contentLength && space >= outLen)
   {
+    LOGDEBUG("Step 1");
+
     _writtenLength += request->client()->write(out.c_str(), outLen);
     _state = RESPONSE_WAIT_ACK;
   }
   else if (_contentLength && space >= outLen + _contentLength)
   {
+    LOGDEBUG("Step 2");
+
+    if (_contentCstr)
+    {
+      _content = String(_contentCstr);    // short _contentCstr - so just send as Arduino String - not much of a penalty - fall into below
+    }
+
     out += _content;
     outLen += _contentLength;
     _writtenLength += request->client()->write(out.c_str(), outLen);
+
     _state = RESPONSE_WAIT_ACK;
   }
   else if (space && space < outLen)
   {
     String partial = out.substring(0, space);
-    _content = out.substring(space) + _content;
-    _contentLength += outLen - space;
+
+    LOGDEBUG("Step 3");
+
+    if (_contentCstr)
+    {
+      _partialHeader = out.substring(space);
+    }
+    else
+    {
+      _content = out.substring(space) + _content;
+      _contentLength += outLen - space;
+    }
+
+    LOGDEBUG1("partial =", partial);
+
     _writtenLength += request->client()->write(partial.c_str(), partial.length());
+
     _state = RESPONSE_CONTENT;
   }
   else if (space > outLen && space < (outLen + _contentLength))
   {
     size_t shift = space - outLen;
+
+    LOGDEBUG("Step 4");
+
     outLen += shift;
     _sentLength += shift;
-    out += _content.substring(0, shift);
-    _content = _content.substring(shift);
+
+    if (_contentCstr)
+    {
+      char *s = (char *)malloc(shift + 1);
+
+      if (s != nullptr)
+      {
+        strncpy(s, _contentCstr, shift);
+        s[shift] = '\0';
+        out += String(s);
+        _contentCstr += shift;
+
+        free(s);
+      }
+      else
+      {
+        LOGERROR("AsyncBasicResponse::_respond: Out of heap");
+
+        return;
+      }
+    }
+    else
+    {
+      out += _content.substring(0, shift);
+      _content = _content.substring(shift);
+    }
+
+    LOGDEBUG1("out =", out);
+
     _writtenLength += request->client()->write(out.c_str(), outLen);
     _state = RESPONSE_CONTENT;
   }
   else
   {
-    _content = out + _content;
-    _contentLength += outLen;
+    LOGDEBUG("Step 5");
+
+    if (_contentCstr)
+    {
+      _partialHeader = out;
+    }
+    else
+    {
+      _content = out + _content;
+      _contentLength += outLen;
+    }
+    
     _state = RESPONSE_CONTENT;
   }
+
+  LOGDEBUG3("AsyncBasicResponse::_respond : Post_respond, _contentLength =", _contentLength, ", out =", out );
+  LOGDEBUG3("outLen =", outLen, ", _contentCstr =", _contentCstr);
 }
+
+/////////////////////////////////////////////////
 
 size_t AsyncBasicResponse::_ack(AsyncWebServerRequest *request, size_t len, uint32_t time)
 {
-  (void)time;
+  AWS_ETHERNET_UNUSED(time);
+
+  LOGDEBUG1("AsyncBasicResponse::_ack : Pre_ack, _contentLength =", _contentLength);
+
   _ackedLength += len;
 
   if (_state == RESPONSE_CONTENT)
   {
+    String out;
     size_t available = _contentLength - _sentLength;
     size_t space = request->client()->space();
+
+    if (_partialHeader.length() > 0)
+    {
+      if (_partialHeader.length() > space)
+      {
+        // Header longer than space - send a piece of it, and make the _partialHeader = to what remains
+        String _subHeader;
+        String tmpString;
+
+        _subHeader = _partialHeader.substring(0, space);
+        tmpString = _partialHeader.substring(space);
+        _partialHeader = tmpString;
+
+        _writtenLength += request->client()->write(_subHeader.c_str(), space);
+
+        return (_partialHeader.length());
+      }
+      else
+      {
+        // _partialHeader is <= space length - therefore send the whole thing, and make the remaining length = to the _contrentLength
+        _writtenLength += request->client()->write(_partialHeader.c_str(), _partialHeader.length());
+
+        _partialHeader = String();
+
+        return (_contentLength);
+      }
+    }
+
+    // if we are here - there is no _partialHJeader to send
+
+    LOGDEBUG3("AsyncBasicResponse::_ack : available =", available, ", space =", space );
 
     //we can fit in this packet
     if (space > available)
     {
-      _writtenLength += request->client()->write(_content.c_str(), available);
-      _content = String();
+      LOGDEBUG1("AsyncBasicResponse::_ack : Pre_ack, _contentLength =", _contentLength);
+
+      if (_contentCstr)
+      {
+        LOGDEBUG1("In space>available : output =", _contentCstr);
+
+        _writtenLength += request->client()->write(_contentCstr, available);
+        //_contentCstr[0] = '\0';
+      }
+      else
+      {
+        _writtenLength += request->client()->write(_content.c_str(), available);
+        _content = String();
+      }
+
       _state = RESPONSE_WAIT_ACK;
 
       return available;
     }
 
     //send some data, the rest on ack
-    String out = _content.substring(0, space);
-    _content = _content.substring(space);
+    if (_contentCstr)
+    {
+      char *s = (char *)malloc(space + 1);
+
+      if (s != nullptr)
+      {
+        strncpy(s, _contentCstr, space);
+        s[space] = '\0';
+        out = String(s);
+        _contentCstr += space;
+        
+        free(s);
+      }
+      else
+      {
+        LOGERROR("AsyncBasicResponse::_ack: Out of heap");
+
+        return 0;
+      }
+    }
+    else
+    {
+      out = _content.substring(0, space);
+      _content = _content.substring(space);
+    }
+
     _sentLength += space;
+
+    LOGDEBUG1("In space>available : output =", out);
+
     _writtenLength += request->client()->write(out.c_str(), space);
 
     return space;
@@ -311,13 +517,15 @@ size_t AsyncBasicResponse::_ack(AsyncWebServerRequest *request, size_t len, uint
     if (_ackedLength >= _writtenLength)
     {
       _state = RESPONSE_END;
-      request->client()->close(true);  /* Might it be required? */
     }
   }
+
+  LOGDEBUG3("AsyncBasicResponse::_ack : Post_ack, _contentLength =", _contentLength, ", _contentCstr =", _contentCstr);
 
   return 0;
 }
 
+/////////////////////////////////////////////////////////////////////////////////////////
 
 /*
    Abstract Response
@@ -344,7 +552,7 @@ void AsyncAbstractResponse::_respond(AsyncWebServerRequest *request)
 
 size_t AsyncAbstractResponse::_ack(AsyncWebServerRequest *request, size_t len, uint32_t time)
 {
-  (void)time;
+  AWS_ETHERNET_UNUSED(time);
 
   if (!_sourceValid())
   {
