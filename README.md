@@ -237,9 +237,9 @@ The best and easiest way is to use `Arduino Library Manager`. Search for `AsyncW
 ### Manual Install
 
 1. Navigate to [AsyncWebServer_Ethernet](https://github.com/khoih-prog/AsyncWebServer_Ethernet) page.
-2. Download the latest release `AsyncWebServer_Ethernet-master.zip`.
-3. Extract the zip file to `AsyncWebServer_Ethernet-master` directory 
-4. Copy the whole `AsyncWebServer_Ethernet-master` folder to Arduino libraries' directory such as `~/Arduino/libraries/`.
+2. Download the latest release `AsyncWebServer_Ethernet-main.zip`.
+3. Extract the zip file to `AsyncWebServer_Ethernet-main` directory 
+4. Copy the whole `AsyncWebServer_Ethernet-main` folder to Arduino libraries' directory such as `~/Arduino/libraries/`.
 
 ### VS Code & PlatformIO:
 
@@ -1577,7 +1577,7 @@ HTTP EthernetWebServer is @ IP : 192.168.2.188
 Following is the debug terminal and screen shot when running example [Async_AdvancedWebServer_MemoryIssues_Send_CString](examples/Async_AdvancedWebServer_MemoryIssues_Send_CString), on `ESP8266_NODEMCU_ESP12E with ESP8266_W5500 Ethernet`, to demonstrate the new and powerful `HEAP-saving` feature
 
 
-##### Using CString  ===> smaller heap (116,280 bytes)
+##### Using CString  ===> smaller heap (16,280 bytes)
 
 ```
 Start Async_AdvancedWebServer_MemoryIssues_Send_CString on ESP8266_NODEMCU_ESP12E with ESP8266_W5500 Ethernet
