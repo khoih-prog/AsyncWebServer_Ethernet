@@ -5,12 +5,19 @@
 [![contributions welcome](https://img.shields.io/badge/contributions-welcome-brightgreen.svg?style=flat)](#Contributing)
 [![GitHub issues](https://img.shields.io/github/issues/khoih-prog/AsyncWebServer_Ethernet.svg)](http://github.com/khoih-prog/AsyncWebServer_Ethernet/issues)
 
+
+<a href="https://www.buymeacoffee.com/khoihprog6" title="Donate to my libraries using BuyMeACoffee"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Donate to my libraries using BuyMeACoffee" style="height: 50px !important;width: 181px !important;" ></a>
+<a href="https://www.buymeacoffee.com/khoihprog6" title="Donate to my libraries using BuyMeACoffee"><img src="https://img.shields.io/badge/buy%20me%20a%20coffee-donate-orange.svg?logo=buy-me-a-coffee&logoColor=FFDD00" style="height: 20px !important;width: 200px !important;" ></a>
+
+
 ---
 ---
+
 
 ## Table of contents
 
 * [Table of contents](#table-of-contents)
+* [Important Note from v1.5.0](#Important-Note-from-v150)
 * [Why do we need this AsyncWebServer_Ethernet library](#why-do-we-need-this-AsyncWebServer_Ethernet-library)
   * [Features](#features)
   * [Why Async is better](#why-async-is-better)
@@ -81,11 +88,14 @@
   * [ 7. Async_RegexPatterns](examples/Async_RegexPatterns)
   * [ 8. Async_SimpleWebServer](examples/Async_SimpleWebServer)
   * [ 9. WebClientRepeating](examples/WebClientRepeating)
+  * [10. Async_AdvancedWebServer_MemoryIssues_SendArduinoString](examples/Async_AdvancedWebServer_MemoryIssues_SendArduinoString) **New**
+  * [11. Async_AdvancedWebServer_MemoryIssues_Send_CString](examples/Async_AdvancedWebServer_MemoryIssues_Send_CString) **New**
 * [Debug Terminal Output Samples](#debug-terminal-output-samples)
   * [1. AsyncMultiWebServer on ESP8266_NODEMCU_ESP12E with ESP8266_W5500 Ethernet](#1-AsyncMultiWebServer-on-ESP8266_NODEMCU_ESP12E-with-ESP8266_W5500-Ethernet)
   * [2. WebClientRepeating on ESP8266_NODEMCU_ESP12E with ESP8266_W5500 Ethernet](#2-WebClientRepeating-on-ESP8266_NODEMCU_ESP12E-with-ESP8266_W5500-Ethernet)
   * [3. Async_AdvancedWebServer on ESP8266_NODEMCU_ESP12E with ESP8266_ENC28J60 Ethernet](#3-Async_AdvancedWebServer-on-ESP8266_NODEMCU_ESP12E-with-ESP8266_ENC28J60-Ethernet)
   * [4. Async_AdvancedWebServer on ESP8266_NODEMCU_ESP12E with ESP8266_W5500 Ethernet](#4-Async_AdvancedWebServer-on-ESP8266_NODEMCU_ESP12E-with-ESP8266_W5500-Ethernet)
+  * [5. Async_AdvancedWebServer_MemoryIssues_Send_CString ESP8266_NODEMCU_ESP12E with ESP8266_W5500 Ethernet](#5-Async_AdvancedWebServer_MemoryIssues_Send_CString-on-ESP8266_NODEMCU_ESP12E-with-ESP8266_W5500-Ethernet)
 * [Debug](#debug)
 * [Troubleshooting](#troubleshooting)
 * [Issues](#issues)
@@ -95,6 +105,80 @@
 * [Contributing](#contributing)
 * [License](#license)
 * [Copyright](#copyright)
+
+---
+---
+
+
+### Important Note from v1.5.0
+
+The new `v1.5.0+` has added a new and powerful feature to permit using `CString` to save heap to send `very large data`.
+
+Check the `marvelleous` PRs of **@salasidis** in [Portenta_H7_AsyncWebServer library](https://github.com/khoih-prog/Portenta_H7_AsyncWebServer)
+- [request->send(200, textPlainStr, jsonChartDataCharStr); - Without using String Class - to save heap #8](https://github.com/khoih-prog/Portenta_H7_AsyncWebServer/pull/8)
+- [All memmove() removed - string no longer destroyed #11](https://github.com/khoih-prog/Portenta_H7_AsyncWebServer/pull/11)
+
+and these new examples
+
+1. [Async_AdvancedWebServer_MemoryIssues_Send_CString](https://github.com/khoih-prog/AsyncWebServer_Ethernet/tree/main/examples/Async_AdvancedWebServer_MemoryIssues_Send_CString)
+2. [Async_AdvancedWebServer_MemoryIssues_SendArduinoString](https://github.com/khoih-prog/AsyncWebServer_Ethernet/tree/main/examples/Async_AdvancedWebServer_MemoryIssues_SendArduinoString)
+
+If using Arduino String, to send a buffer around 9 KBytes, the used `Max Heap` is around **25,856 bytes**
+
+If using CString in regular memory, with the same 9 KBytes, the used `Max Heap` is around **16,280 bytes, saving around a buffer size (9 KBytes)**
+
+This is very critical in use-cases where sending `very large data` is necessary, without `heap-allocation-error`. Especially when **ESP8266 HEAP space is much small compared to that of ESP32**.
+
+
+1. The traditional function used to send `Arduino String` is
+
+https://github.com/khoih-prog/AsyncWebServer_Ethernet/blob/4a55108845397777f9940108c2cf1d20f5d841c2/src/AsyncWebServer_Ethernet.hpp#L428
+
+```cpp
+void send(int code, const String& contentType = String(), const String& content = String());
+```
+
+such as
+
+```cpp
+request->send(200, textPlainStr, ArduinoStr);
+```
+The required additional HEAP is about **2 times of the String size**
+
+
+2. To use `CString` with copying while sending. Use function
+
+https://github.com/khoih-prog/AsyncWebServer_Ethernet/blob/4a55108845397777f9940108c2cf1d20f5d841c2/src/AsyncWebServer_Ethernet.hpp#L429
+
+```cpp
+void send(int code, const String& contentType, const char *content, bool nonCopyingSend = true);    // RSMOD
+```
+
+such as 
+
+```cpp
+request->send(200, textPlainStr, cStr);
+```
+
+The required additional HEAP is also about **2 times of the CString size** because of `unnecessary copies` of the CString in HEAP. Avoid this `unefficient` way.
+
+
+3. To use `CString` without copying while sending. Use function
+
+https://github.com/khoih-prog/AsyncWebServer_Ethernet/blob/4a55108845397777f9940108c2cf1d20f5d841c2/src/AsyncWebServer_Ethernet.hpp#L429
+
+```cpp
+void send(int code, const String& contentType, const char *content, bool nonCopyingSend = true);    // RSMOD
+```
+
+such as 
+
+```cpp
+request->send(200, textPlainStr, cStr, false);
+```
+
+The required additional HEAP is about **1 times of the CString size**. This way is the best and **most efficient way** to use by avoiding of `unnecessary copies` of the CString in HEAP
+
 
 ---
 ---
@@ -171,7 +255,7 @@ The best and easiest way is to use `Arduino Library Manager`. Search for `AsyncW
 ## Important things to remember
 
 - This is fully asynchronous server and as such does not run on the loop thread.
-- You can not use yield() or delay() or any function that uses them inside the callbacks
+- You can not use `yield()` or `delay()` or any function that uses them inside the callbacks
 - The server is smart enough to know when to close the connection and free resources
 - You can not send more than one response to a single request
 
@@ -182,54 +266,54 @@ The best and easiest way is to use `Arduino Library Manager`. Search for `AsyncW
 ### The Async Web server
 
 - Listens for connections
-- Wraps the new clients into ```Request```
+- Wraps the new clients into `Request`
 - Keeps track of clients and cleans memory
-- Manages ```Rewrites``` and apply them on the request url
-- Manages ```Handlers``` and attaches them to Requests
+- Manages `Rewrites` and apply them on the request url
+- Manages `Handlers` and attaches them to Requests
 
 ### Request Life Cycle
 
 - TCP connection is received by the server
-- The connection is wrapped inside ```Request``` object
+- The connection is wrapped inside `Request` object
 - When the request head is received (type, url, get params, http version and host),
-  the server goes through all ```Rewrites``` (in the order they were added) to rewrite the url and inject query parameters,
-  next, it goes through all attached ```Handlers```(in the order they were added) trying to find one
-  that ```canHandle``` the given request. If none are found, the default(catch-all) handler is attached.
-- The rest of the request is received, calling the ```handleUpload``` or ```handleBody``` methods of the ```Handler``` if they are needed (POST+File/Body)
-- When the whole request is parsed, the result is given to the ```handleRequest``` method of the ```Handler``` and is ready to be responded to
-- In the ```handleRequest``` method, to the ```Request``` is attached a ```Response``` object (see below) that will serve the response data back to the client
-- When the ```Response``` is sent, the client is closed and freed from the memory
+  the server goes through all `Rewrites` (in the order they were added) to rewrite the url and inject query parameters,
+  next, it goes through all attached `Handlers` (in the order they were added) trying to find one
+  that `canHandle` the given request. If none are found, the default(catch-all) handler is attached.
+- The rest of the request is received, calling the `handleUpload` or `handleBody` methods of the `Handler` if they are needed (POST+File/Body)
+- When the whole request is parsed, the result is given to the `handleRequest` method of the `Handler` and is ready to be responded to
+- In the `handleRequest` method, to the `Request` is attached a `Response` object (see below) that will serve the response data back to the client
+- When the `Response` is sent, the client is closed and freed from the memory
 
 ### Rewrites and how do they work
 
-- The ```Rewrites``` are used to rewrite the request url and/or inject get parameters for a specific request url path.
-- All ```Rewrites``` are evaluated on the request in the order they have been added to the server.
-- The ```Rewrite``` will change the request url only if the request url (excluding get parameters) is fully match
-  the rewrite url, and when the optional ```Filter``` callback return true.
-- Setting a ```Filter``` to the ```Rewrite``` enables to control when to apply the rewrite, decision can be based on
+- The `Rewrites` are used to rewrite the request url and/or inject get parameters for a specific request url path.
+- All `Rewrites` are evaluated on the request in the order they have been added to the server.
+- The `Rewrite` will change the request url only if the request url (excluding get parameters) is fully match
+  the rewrite url, and when the optional `Filter` callback return true.
+- Setting a `Filter` to the `Rewrite` enables to control when to apply the rewrite, decision can be based on
   request url, http version, request host/port/target host, get parameters or the request client's localIP or remoteIP.
-- The ```Rewrite``` can specify a target url with optional get parameters, e.g. ```/to-url?with=params```
+- The `Rewrite` can specify a target url with optional get parameters, e.g. `/to-url?with=params`
 
 ### Handlers and how do they work
 
-- The ```Handlers``` are used for executing specific actions to particular requests
-- One ```Handler``` instance can be attached to any request and lives together with the server
-- Setting a ```Filter``` to the ```Handler``` enables to control when to apply the handler, decision can be based on
+- The `Handlers` are used for executing specific actions to particular requests
+- One `Handler` instance can be attached to any request and lives together with the server
+- Setting a `Filter` to the `Handler` enables to control when to apply the handler, decision can be based on
   request url, http version, request host/port/target host, get parameters or the request client's localIP or remoteIP.
-- The ```canHandle``` method is used for handler specific control on whether the requests can be handled
-  and for declaring any interesting headers that the ```Request``` should parse. Decision can be based on request
+- The `canHandle` method is used for handler specific control on whether the requests can be handled
+  and for declaring any interesting headers that the `Request` should parse. Decision can be based on request
   method, request url, http version, request host/port/target host and get parameters
-- Once a ```Handler``` is attached to given ```Request``` (```canHandle``` returned true)
-  that ```Handler``` takes care to receive any file/data upload and attach a ```Response```
-  once the ```Request``` has been fully parsed
-- ```Handlers``` are evaluated in the order they are attached to the server. The ```canHandle``` is called only
-  if the ```Filter``` that was set to the ```Handler``` return true.
-- The first ```Handler``` that can handle the request is selected, not further ```Filter``` and ```canHandle``` are called.
+- Once a `Handler` is attached to given `Request` (`canHandle` returned true)
+  that `Handler` takes care to receive any file/data upload and attach a `Response`
+  once the `Request` has been fully parsed
+- `Handlers` are evaluated in the order they are attached to the server. The `canHandle` is called only
+  if the `Filter` that was set to the `Handler` return true.
+- The first `Handler` that can handle the request is selected, not further `Filter` and `canHandle` are called.
 
 ### Responses and how do they work
 
-- The ```Response``` objects are used to send the response data back to the client
-- The ```Response``` object lives with the ```Request``` and is freed on end or disconnect
+- The `Response` objects are used to send the response data back to the client
+- The `Response` object lives with the `Request` and is freed on end or disconnect
 - Different techniques are used depending on the response type to send the data in packets
   returning back almost immediately and sending the next packet when this one is received.
   Any time in between is spent to run the user loop and handle other network packets
@@ -241,7 +325,7 @@ The best and easiest way is to use `Arduino Library Manager`. Search for `AsyncW
 - AsyncWebServer_Ethernet contains simple template processing engine.
 - Template processing can be added to most response types.
 - Currently it supports only replacing template placeholders with actual values. No conditional processing, cycles, etc.
-- Placeholders are delimited with ```%``` symbols. Like this: ```%TEMPLATE_PLACEHOLDER%```.
+- Placeholders are delimited with `%` symbols. Like this: `%TEMPLATE_PLACEHOLDER%`.
 - It works by extracting placeholder name from response text and passing it to user provided function which should return actual value to be used instead of placeholder.
 - Since it's user provided function, it is possible for library users to implement conditional processing and cycles themselves.
 - Since it's impossible to know the actual response size after template processing step in advance (and, therefore, to include it in response headers), the response becomes [chunked](#chunked-response).
@@ -695,6 +779,7 @@ request->send(response);
 ---
 
 ## Param Rewrite With Matching
+
 It is possible to rewrite the request url with parameter matchg. Here is an example with one parameter:
 Rewrite for example "/radio/{frequence}" -> "/radio?f={frequence}"
 
@@ -970,7 +1055,7 @@ void sendDataWs(AsyncWebSocketClient * client)
 
 ### Limiting the number of web socket clients
 
-Browsers sometimes do not correctly close the websocket connection, even when the close() function is called in javascript.  This will eventually exhaust the web server's resources and will cause the server to crash.  Periodically calling the cleanClients() function from the main loop() function limits the number of clients by closing the oldest client when the maximum number of clients has been exceeded.  This can called be every cycle, however, if you wish to use less power, then calling as infrequently as once per second is sufficient.
+Browsers sometimes do not correctly close the websocket connection, even when the `close()` function is called in javascript.  This will eventually exhaust the web server's resources and will cause the server to crash.  Periodically calling the `cleanClients()` function from the main `loop()` function limits the number of clients by closing the oldest client when the maximum number of clients has been exceeded.  This can called be every cycle, however, if you wish to use less power, then calling as infrequently as once per second is sufficient.
 
 ```cpp
 void loop(){
@@ -982,8 +1067,8 @@ void loop(){
 
 ## Async Event Source Plugin
 
-The server includes EventSource (Server-Sent Events) plugin which can be used to send short text events to the browser.
-Difference between EventSource and WebSockets is that EventSource is single direction, text-only protocol.
+The server includes `EventSource` (Server-Sent Events) plugin which can be used to send short text events to the browser.
+Difference between `EventSource` and `WebSockets` is that `EventSource` is single direction, text-only protocol.
 
 ### Setup Event Source on the server
 
@@ -1322,164 +1407,16 @@ build_flags =
  7. [Async_RegexPatterns](examples/Async_RegexPatterns)
  8. [Async_SimpleWebServer](examples/Async_SimpleWebServer)
  9. [WebClientRepeating](examples/WebClientRepeating)
+10 [Async_AdvancedWebServer_MemoryIssues_SendArduinoString](examples/Async_AdvancedWebServer_MemoryIssues_SendArduinoString) **New**
+11. [Async_AdvancedWebServer_MemoryIssues_Send_CString](examples/Async_AdvancedWebServer_MemoryIssues_Send_CString) **New**
+
 
 ---
 ---
 
 ### Example [Async_AdvancedWebServer](examples/Async_AdvancedWebServer)
 
-```cpp
-#if !( defined(ESP8266) )
-  #error This code is designed for ESP8266 platform! Please check your Tools->Board setting.
-#endif
-
-#include <Arduino.h>
-
-#define _AWS_ETHERNET_LOGLEVEL_       2
-
-// Select the IP address according to your local network
-IPAddress myIP(192, 168, 2, 232);
-IPAddress myGW(192, 168, 2, 1);
-IPAddress mySN(255, 255, 255, 0);
-
-// Google DNS Server IP
-IPAddress myDNS(8, 8, 8, 8);
-
-#include <ESPAsyncTCP.h>
-
-#include <AsyncWebServer_Ethernet.h>
-
-AsyncWebServer    server(80);
-
-int reqCount = 0;                // number of requests received
-
-void handleRoot(AsyncWebServerRequest *request)
-{
-#define BUFFER_SIZE     400
-
-  char temp[BUFFER_SIZE];
-  int sec = millis() / 1000;
-  int min = sec / 60;
-  int hr = min / 60;
-  int day = hr / 24;
-
-  snprintf(temp, BUFFER_SIZE - 1,
-           "<html>\
-<head>\
-<meta http-equiv='refresh' content='5'/>\
-<title>AsyncWebServer-%s</title>\
-<style>\
-body { background-color: #cccccc; font-family: Arial, Helvetica, Sans-Serif; Color: #000088; }\
-</style>\
-</head>\
-<body>\
-<h2>AsyncWebServer_Ethernet!</h2>\
-<h3>running on %s</h3>\
-<p>Uptime: %d d %02d:%02d:%02d</p>\
-<img src=\"/test.svg\" />\
-</body>\
-</html>", BOARD_NAME, BOARD_NAME, day, hr % 24, min % 60, sec % 60);
-
-  request->send(200, "text/html", temp);
-}
-
-void handleNotFound(AsyncWebServerRequest *request)
-{
-  String message = "File Not Found\n\n";
-
-  message += "URI: ";
-  message += request->url();
-  message += "\nMethod: ";
-  message += (request->method() == HTTP_GET) ? "GET" : "POST";
-  message += "\nArguments: ";
-  message += request->args();
-  message += "\n";
-
-  for (uint8_t i = 0; i < request->args(); i++)
-  {
-    message += " " + request->argName(i) + ": " + request->arg(i) + "\n";
-  }
-
-  request->send(404, "text/plain", message);
-}
-
-void drawGraph(AsyncWebServerRequest *request)
-{
-  String out;
-
-  out.reserve(3000);
-  char temp[70];
-  
-  out += "<svg xmlns=\"http://www.w3.org/2000/svg\" version=\"1.1\" width=\"310\" height=\"150\">\n";
-  out += "<rect width=\"310\" height=\"150\" fill=\"rgb(250, 230, 210)\" stroke-width=\"2\" stroke=\"rgb(0, 0, 0)\" />\n";
-  out += "<g stroke=\"blue\">\n";
-  int y = rand() % 130;
-
-  for (int x = 10; x < 300; x += 10)
-  {
-    int y2 = rand() % 130;
-    sprintf(temp, "<line x1=\"%d\" y1=\"%d\" x2=\"%d\" y2=\"%d\" stroke-width=\"2\" />\n", x, 140 - y, x + 10, 140 - y2);
-    out += temp;
-    y = y2;
-  }
-  out += "</g>\n</svg>\n";
-
-  request->send(200, "image/svg+xml", out);
-}
-
-
-void setup(void)
-{
-  Serial.begin(115200);
-  while (!Serial);
-
-  delay(200);
-
-  Serial.print(F("\nStart AsyncSimpleServer_WT32_ETH01 on ")); Serial.print(BOARD_NAME);
-  Serial.print(F(" with ")); Serial.println(SHIELD_TYPE);
-  Serial.println(ASYNC_WEBSERVER_WT32_ETH01_VERSION);
-
-  // To be called before ETH.begin()
-  WT32_ETH01_onEvent();
-
-  //bool begin(uint8_t phy_addr=ETH_PHY_ADDR, int power=ETH_PHY_POWER, int mdc=ETH_PHY_MDC, int mdio=ETH_PHY_MDIO, 
-  //           eth_phy_type_t type=ETH_PHY_TYPE, eth_clock_mode_t clk_mode=ETH_CLK_MODE);
-  //ETH.begin(ETH_PHY_ADDR, ETH_PHY_POWER, ETH_PHY_MDC, ETH_PHY_MDIO, ETH_PHY_TYPE, ETH_CLK_MODE);
-  ETH.begin(ETH_PHY_ADDR, ETH_PHY_POWER);
-
-  // Static IP, leave without this line to get IP via DHCP
-  //bool config(IPAddress local_ip, IPAddress gateway, IPAddress subnet, IPAddress dns1 = 0, IPAddress dns2 = 0);
-  ETH.config(myIP, myGW, mySN, myDNS);
-
-  WT32_ETH01_waitForConnect();
-  
-  server.on("/", HTTP_GET, [](AsyncWebServerRequest * request)
-  {
-    handleRoot(request);
-  });
-
-  server.on("/test.svg", HTTP_GET, [](AsyncWebServerRequest * request)
-  {
-    drawGraph(request);
-  });
-
-  server.on("/inline", [](AsyncWebServerRequest * request)
-  {
-    request->send(200, "text/plain", "This works as well");
-  });
-
-  server.onNotFound(handleNotFound);
-
-  server.begin();
-
-  Serial.print(F("HTTP EthernetWebServer is @ IP : "));
-  Serial.println(ETH.localIP());
-}
-
-void loop(void)
-{
-}
-```
+https://github.com/khoih-prog/AsyncWebServer_Ethernet/blob/f1e10ece43b10fb250a3fd5ebdef01bf1a3d3267/examples/Async_AdvancedWebServer/Async_AdvancedWebServer.ino#L41-L214
 
 You can access the Async Advanced WebServer @ the server IP
 
@@ -1499,7 +1436,7 @@ Following are debug terminal output and screen shots when running example [Async
 
 ```
 Start AsyncMultiWebServer on ESP8266_NODEMCU_ESP12E with ESP8266_W5500 Ethernet
-AsyncWebServer_Ethernet v1.4.1
+AsyncWebServer_Ethernet v1.5.0
 Connecting to network : ........
 Ethernet DHCP IP address: 192.168.2.188
 Initialize multiServer OK, serverIndex = 0, port = 8080
@@ -1533,7 +1470,7 @@ Following is debug terminal output when running example [WebClientRepeating](exa
 
 ```
 Start WebClientRepeating on ESP8266_NODEMCU_ESP12E with ESP8266_W5500 Ethernet
-AsyncWebServer_Ethernet v1.4.1
+AsyncWebServer_Ethernet v1.5.0
 Connecting to network : ..
 Ethernet DHCP IP address: 192.168.2.188
 
@@ -1608,7 +1545,7 @@ The following are debug terminal output and screen shot when running example [As
 
 ```
 Start Async_AdvancedWebServer on ESP8266_NODEMCU_ESP12E with ESP8266_ENC28J60 Ethernet
-AsyncWebServer_Ethernet v1.4.1
+AsyncWebServer_Ethernet v1.5.0
 Connecting to network : ...
 Ethernet DHCP IP address: 192.168.2.187
 HTTP EthernetWebServer is @ IP : 192.168.2.187
@@ -1626,11 +1563,93 @@ The following are debug terminal output and screen shot when running example [As
 
 ```
 Start Async_AdvancedWebServer on ESP8266_NODEMCU_ESP12E with ESP8266_W5500 Ethernet
-AsyncWebServer_Ethernet v1.4.1
+AsyncWebServer_Ethernet v1.5.0
 Connecting to network : .
 Ethernet DHCP IP address: 192.168.2.188
 HTTP EthernetWebServer is @ IP : 192.168.2.188
 ```
+
+
+---
+
+#### 5. Async_AdvancedWebServer_MemoryIssues_Send_CString on ESP8266_NODEMCU_ESP12E with ESP8266_W5500 Ethernet
+
+Following is the debug terminal and screen shot when running example [Async_AdvancedWebServer_MemoryIssues_Send_CString](examples/Async_AdvancedWebServer_MemoryIssues_Send_CString), on `ESP8266_NODEMCU_ESP12E with ESP8266_W5500 Ethernet`, to demonstrate the new and powerful `HEAP-saving` feature
+
+
+##### Using CString  ===> smaller heap (116,280 bytes)
+
+```
+Start Async_AdvancedWebServer_MemoryIssues_Send_CString on ESP8266_NODEMCU_ESP12E with ESP8266_W5500 Ethernet
+AsyncWebServer_Ethernet v1.5.0
+
+HEAP DATA - Start =>  Free heap: 48720  Used heap: 0
+Connecting to network : ..
+Ethernet DHCP IP address: 192.168.2.82
+HTTP EthernetWebServer is @ IP : 192.168.2.82
+
+HEAP DATA - Pre Create Arduino String  Free heap: 35968  Used heap: 12752
+.
+HEAP DATA - Pre Send  Free heap: 33912  Used heap: 14808
+
+HEAP DATA - Post Send  Free heap: 32440  Used heap: 16280
+.....
+```
+
+While using `Arduino String`, the HEAP usage is very large
+
+
+#### Async_AdvancedWebServer_MemoryIssues_SendArduinoString  ===> larger heap (25,856 bytes) around 2x data buffer (~9,293 bytes) larger
+
+
+```
+Start Async_AdvancedWebServer_MemoryIssues_SendArduinoString on ESP8266_NODEMCU_ESP12E with ESP8266_W5500 Ethernet
+AsyncWebServer_Ethernet v1.5.0
+
+HEAP DATA - Start =>  Free heap: 49000  Used heap: 0
+Connecting to network : .
+Ethernet DHCP IP address: 192.168.2.82
+HTTP EthernetWebServer is @ IP : 192.168.2.82
+
+HEAP DATA - Pre Create Arduino String  Free heap: 48256  Used heap: 744
+.
+HEAP DATA - Pre Send  Free heap: 34176  Used heap: 14824
+
+HEAP DATA - Post Send  Free heap: 24312  Used heap: 24688
+.
+HEAP DATA - Post Send  Free heap: 23864  Used heap: 25232
+.
+HEAP DATA - Post Send  Free heap: 23464  Used heap: 25632
+
+HEAP DATA - Post Send  Free heap: 23272  Used heap: 25824
+........ 
+HEAP DATA - Post Send  Free heap: 23256  Used heap: 25840
+.
+Out String Length=9293
+......... ..
+Out String Length=9320
+....
+HEAP DATA - Post Send  Free heap: 23240  Used heap: 25856
+.... ..
+Out String Length=9345
+........ ...
+```
+
+
+You can access the Async Advanced WebServers at the displayed server IP, e.g. `192.168.2.82`
+
+1. For W5500
+
+<p align="center">
+    <img src="https://github.com/khoih-prog/AsyncWebServer_Ethernet/blob/main/pics/Async_AdvancedWebServer_Send_CString_W5500.png">
+</p>
+
+
+2. For ENC28J60
+
+<p align="center">
+    <img src="https://github.com/khoih-prog/AsyncWebServer_Ethernet/blob/main/pics/Async_AdvancedWebServer_Send_CString_ENC28J60.png">
+</p>
 
 ---
 ---
@@ -1673,7 +1692,7 @@ Submit issues to: [AsyncWebServer_Ethernet issues](https://github.com/khoih-prog
  2. Add more examples.
  3. Add debugging features.
  4. Add Table-of-Contents and Version String
- 
+ 5. Support using `CString` to save heap to send `very large data`. Check [request->send(200, textPlainStr, jsonChartDataCharStr); - Without using String Class - to save heap #8](https://github.com/khoih-prog/Portenta_H7_AsyncWebServer/pull/8)
 
 ---
 ---
@@ -1682,11 +1701,14 @@ Submit issues to: [AsyncWebServer_Ethernet issues](https://github.com/khoih-prog
 ### Contributions and Thanks
 
 1. Based on and modified from [Hristo Gochkov's ESPAsyncWebServer](https://github.com/me-no-dev/ESPAsyncWebServer). Many thanks to [Hristo Gochkov](https://github.com/me-no-dev) for great [ESPAsyncWebServer Library](https://github.com/me-no-dev/ESPAsyncWebServer)
-
+2. Thanks to [salasidis](https://github.com/salasidis) aka [rs77can](https://forum.arduino.cc/u/rs77can) to discuss and make the following `marvellous` PRs in [Portenta_H7_AsyncWebServer library](https://github.com/khoih-prog/Portenta_H7_AsyncWebServer)
+- [request->send(200, textPlainStr, jsonChartDataCharStr); - Without using String Class - to save heap #8](https://github.com/khoih-prog/Portenta_H7_AsyncWebServer/pull/8), leading to `v1.5.0` to support using `CString` to save heap to send `very large data`
+- [All memmove() removed - string no longer destroyed #11](https://github.com/khoih-prog/Portenta_H7_AsyncWebServer/pull/11), leading to `v1.5.0` to remove `memmove()` and not to destroy String anymore
 
 <table>
   <tr>
     <td align="center"><a href="https://github.com/me-no-dev"><img src="https://github.com/me-no-dev.png" width="100px;" alt="me-no-dev"/><br /><sub><b>⭐️⭐️ Hristo Gochkov</b></sub></a><br /></td>
+    <td align="center"><a href="https://github.com/salasidis"><img src="https://github.com/salasidis.png" width="100px;" alt="salasidis"/><br /><sub><b>⭐️ salasidis</b></sub></a><br /></td>
   </tr> 
 </table>
 
