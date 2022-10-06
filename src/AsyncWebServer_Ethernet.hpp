@@ -72,7 +72,10 @@
 /////////////////////////////////////////////////////////
 
 #ifdef ASYNCWEBSERVER_REGEX
-  #warning Using ASYNCWEBSERVER_REGEX
+  # if(_AWS_ETHERNET_LOGLEVEL_>3)
+    #warning Using ASYNCWEBSERVER_REGEX
+  #endif
+  
   #define ASYNCWEBSERVER_REGEX_ATTRIBUTE
 #else
   #define ASYNCWEBSERVER_REGEX_ATTRIBUTE __attribute__((warning("ASYNCWEBSERVER_REGEX not defined")))
