@@ -1,27 +1,28 @@
 /****************************************************************************************************************************
   AsyncWebSocket_Ethernet.cpp - Dead simple AsyncWebServer for ESP8266 using W5x00/ENC8266 Ethernet
-   
+
   AsyncWebServer_Ethernet is a library for the Ethernet with lwIP_5100, lwIP_5500 or lwIP_enc28j60 library
-  
+
   Based on and modified from ESPAsyncWebServer (https://github.com/me-no-dev/ESPAsyncWebServer)
   Built by Khoi Hoang https://github.com/khoih-prog/AsyncWebServer_Ethernet
-  
+
   Copyright (c) 2016 Hristo Gochkov. All rights reserved.
   This file is part of the esp8266 core for Arduino environment.
-  This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License 
+  This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License
   as published bythe Free Software Foundation, either version 3 of the License, or (at your option) any later version.
   This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
   You should have received a copy of the GNU General Public License along with this program.
-  If not, see <https://www.gnu.org/licenses/>.  
- 
-  Version: 1.5.0
+  If not, see <https://www.gnu.org/licenses/>.
+
+  Version: 1.5.1
 
   Version Modified By   Date      Comments
   ------- -----------  ---------- -----------
   1.4.1   K Hoang      18/03/2022 Initial coding for ESP8266 using W5x00/ENC8266 Ethernet.
                                   Bump up version to v1.4.1 to sync with AsyncWebServer_STM32 v1.4.1
   1.5.0   K Hoang      05/10/2022 Option to use non-destroyed cString instead of String to save Heap
+  1.5.1   K Hoang      10/11/2022 Add examples to demo how to use beginChunkedResponse() to send in chunks
  *****************************************************************************************************************************/
 
 #include "Arduino.h"
@@ -95,9 +96,9 @@ size_t b64_encoded_size(size_t inlen)
 char * b64_encode(const unsigned char *in, size_t len, char * out)
 {
   const char b64chars[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-  size_t  elen;  
-  size_t  i;  
-  size_t  j;  
+  size_t  elen;
+  size_t  i;
+  size_t  j;
   size_t  v;
 
   if (in == NULL || len == 0)
@@ -392,7 +393,7 @@ class AsyncWebSocketControl
   public:
 
     /////////////////////////////////////////////////
-  
+
     AsyncWebSocketControl(uint8_t opcode, uint8_t *data = NULL, size_t len = 0, bool mask = false)
       : _opcode(opcode), _len(len), _mask(len && mask), _finished(false)
     {
@@ -501,7 +502,7 @@ AsyncWebSocketBasicMessage::~AsyncWebSocketBasicMessage()
 void AsyncWebSocketBasicMessage::ack(size_t len, uint32_t time)
 {
   AWS_ETHERNET_UNUSED(time);
-  
+
   _acked += len;
 
   if (_sent == _len && _acked == _ack)
@@ -577,7 +578,7 @@ bool AsyncWebSocketBasicMessage::reserve(size_t size)
       memset(_data, 0, size);
       _len = size;
       _status = WS_MSG_SENDING;
-      
+
       return true;
     }
   }
@@ -629,7 +630,7 @@ AsyncWebSocketMultiMessage::~AsyncWebSocketMultiMessage()
 void AsyncWebSocketMultiMessage::ack(size_t len, uint32_t time)
 {
   AWS_ETHERNET_UNUSED(time);
-  
+
   _acked += len;
 
   if (_sent >= _len && _acked >= _ack)
@@ -655,7 +656,7 @@ size_t AsyncWebSocketMultiMessage::send(AsyncClient *client)
   if (_sent == _len)
   {
     _status = WS_MSG_SENT;
-    
+
     return 0;
   }
 
@@ -693,6 +694,7 @@ size_t AsyncWebSocketMultiMessage::send(AsyncClient *client)
     _sent -= (toSend - sent);
     _ack -= (toSend - sent);
   }
+
   LOGDEBUG3("Send OK: _sent = ", _sent, "= sent =", sent);
 
   return sent;
@@ -714,7 +716,8 @@ AsyncWebSocketClient::AsyncWebSocketClient(AsyncWebServerRequest *request, Async
 {
   delete  c;
 }))
-, _messageQueue(LinkedList<AsyncWebSocketMessage *>([](AsyncWebSocketMessage *m) {
+, _messageQueue(LinkedList<AsyncWebSocketMessage *>([](AsyncWebSocketMessage *m)
+{
   delete  m;
 }))
 , _tempObject(NULL)
@@ -731,14 +734,14 @@ AsyncWebSocketClient::AsyncWebSocketClient(AsyncWebServerRequest *request, Async
   _client->onError([](void *r, AsyncClient * c, int8_t error)
   {
     AWS_ETHERNET_UNUSED(c);
-    
+
     ((AsyncWebSocketClient*)(r))->_onError(error);
   }, this);
 
   _client->onAck([](void *r, AsyncClient * c, size_t len, uint32_t time)
   {
     AWS_ETHERNET_UNUSED(c);
- 
+
     ((AsyncWebSocketClient*)(r))->_onAck(len, time);
   }, this);
 
@@ -751,21 +754,21 @@ AsyncWebSocketClient::AsyncWebSocketClient(AsyncWebServerRequest *request, Async
   _client->onTimeout([](void *r, AsyncClient * c, uint32_t time)
   {
     AWS_ETHERNET_UNUSED(c);
- 
+
     ((AsyncWebSocketClient*)(r))->_onTimeout(time);
   }, this);
 
   _client->onData([](void *r, AsyncClient * c, void *buf, size_t len)
   {
     AWS_ETHERNET_UNUSED(c);
- 
+
     ((AsyncWebSocketClient*)(r))->_onData(buf, len);
   }, this);
 
   _client->onPoll([](void *r, AsyncClient * c)
   {
     AWS_ETHERNET_UNUSED(c);
- 
+
     ((AsyncWebSocketClient*)(r))->_onPoll();
   }, this);
 
@@ -806,6 +809,7 @@ void AsyncWebSocketClient::_onAck(size_t len, uint32_t time)
 
         return;
       }
+
       _controlQueue.remove(head);
     }
   }
@@ -823,10 +827,12 @@ void AsyncWebSocketClient::_onAck(size_t len, uint32_t time)
 
 void AsyncWebSocketClient::_onPoll()
 {
-  if (_client->canSend() && (!_controlQueue.isEmpty() || !_messageQueue.isEmpty())) {
+  if (_client->canSend() && (!_controlQueue.isEmpty() || !_messageQueue.isEmpty()))
+  {
     _runQueue();
   }
-  else if (_keepAlivePeriod > 0 && _controlQueue.isEmpty() && _messageQueue.isEmpty() && (millis() - _lastMessageTime) >= _keepAlivePeriod)
+  else if (_keepAlivePeriod > 0 && _controlQueue.isEmpty() && _messageQueue.isEmpty()
+           && (millis() - _lastMessageTime) >= _keepAlivePeriod)
   {
     ping((uint8_t *)AWSC_PING_PAYLOAD, AWSC_PING_PAYLOAD_LEN);
   }
@@ -962,7 +968,7 @@ void AsyncWebSocketClient::_onError(int8_t) {}
 void AsyncWebSocketClient::_onTimeout(uint32_t time)
 {
   AWS_ETHERNET_UNUSED(time);
-  
+
   _client->close(true);
 }
 
@@ -1000,10 +1006,10 @@ void AsyncWebSocketClient::_onData(void *pbuf, size_t plen)
         data += 2;
         plen -= 2;
       }
-      else if (_pinfo.len == 127) 
+      else if (_pinfo.len == 127)
       {
         _pinfo.len = fdata[9] | (uint16_t)(fdata[8]) << 8 | (uint32_t)(fdata[7]) << 16 | (uint32_t)(fdata[6]) << 24
-                     | (uint64_t)(fdata[5]) << 32 | (uint64_t)(fdata[4]) << 40 | (uint64_t)(fdata[3]) << 48 
+                     | (uint64_t)(fdata[5]) << 32 | (uint64_t)(fdata[4]) << 40 | (uint64_t)(fdata[3]) << 48
                      | (uint64_t)(fdata[2]) << 56;
         data += 8;
         plen -= 8;
@@ -1032,7 +1038,7 @@ void AsyncWebSocketClient::_onData(void *pbuf, size_t plen)
 
       if (_pinfo.index == 0)
       {
-        if (_pinfo.opcode) 
+        if (_pinfo.opcode)
         {
           _pinfo.message_opcode = _pinfo.opcode;
           _pinfo.num = 0;
@@ -1083,7 +1089,8 @@ void AsyncWebSocketClient::_onData(void *pbuf, size_t plen)
         if (datalen != AWSC_PING_PAYLOAD_LEN || memcmp(AWSC_PING_PAYLOAD, data, AWSC_PING_PAYLOAD_LEN) != 0)
           _server->_handleEvent(this, WS_EVT_PONG, NULL, data, datalen);
       }
-      else if (_pinfo.opcode < 8) { //continuation or text/binary frame
+      else if (_pinfo.opcode < 8)   //continuation or text/binary frame
+      {
         _server->_handleEvent(this, WS_EVT_DATA, (void *)&_pinfo, data, datalen);
       }
     }
@@ -1116,7 +1123,7 @@ size_t AsyncWebSocketClient::printf(const char *format, ...)
   if (!temp)
   {
     va_end(arg);
-    
+
     return 0;
   }
 
@@ -1131,7 +1138,7 @@ size_t AsyncWebSocketClient::printf(const char *format, ...)
     if (!buffer)
     {
       delete[] temp;
-      
+
       return 0;
     }
 
@@ -1148,7 +1155,7 @@ size_t AsyncWebSocketClient::printf(const char *format, ...)
   }
 
   delete[] temp;
-  
+
   return len;
 }
 
@@ -1288,7 +1295,8 @@ AsyncWebSocket::~AsyncWebSocket() {}
 
 /////////////////////////////////////////////////
 
-void AsyncWebSocket::_handleEvent(AsyncWebSocketClient * client, AwsEventType type, void * arg, uint8_t *data, size_t len)
+void AsyncWebSocket::_handleEvent(AsyncWebSocketClient * client, AwsEventType type, void * arg, uint8_t *data,
+                                  size_t len)
 {
   if (_eventHandler != NULL)
   {
@@ -1527,7 +1535,7 @@ size_t AsyncWebSocket::printf(uint32_t id, const char *format, ...)
     va_start(arg, format);
     size_t len = c->printf(format, arg);
     va_end(arg);
-    
+
     return len;
   }
 
@@ -1563,7 +1571,7 @@ size_t AsyncWebSocket::printfAll(const char *format, ...)
   va_end(arg);
 
   textAll(buffer);
-  
+
   return len;
 }
 
@@ -1721,7 +1729,7 @@ void AsyncWebSocket::handleRequest(AsyncWebServerRequest * request)
     return;
   }
 
-  if ((_username != "" && _password != "") && !request->authenticate(_username.c_str(), _password.c_str())) 
+  if ((_username != "" && _password != "") && !request->authenticate(_username.c_str(), _password.c_str()))
   {
     return request->requestAuthentication();
   }
@@ -1821,7 +1829,7 @@ AsyncWebSocketResponse::AsyncWebSocketResponse(const String & key, AsyncWebSocke
   if (hash == NULL)
   {
     _state = RESPONSE_FAILED;
-    
+
     return;
   }
 
@@ -1831,7 +1839,7 @@ AsyncWebSocketResponse::AsyncWebSocketResponse(const String & key, AsyncWebSocke
   {
     free(hash);
     _state = RESPONSE_FAILED;
-    
+
     return;
   }
 
@@ -1864,13 +1872,13 @@ void AsyncWebSocketResponse::_respond(AsyncWebServerRequest * request)
   if (_state == RESPONSE_FAILED)
   {
     request->client()->close(true);
-    
+
     return;
   }
 
   String out = _assembleHead(request->version());
   request->client()->write(out.c_str(), _headLength);
-  
+
   _state = RESPONSE_WAIT_ACK;
 }
 

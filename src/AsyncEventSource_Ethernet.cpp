@@ -1,27 +1,28 @@
 /****************************************************************************************************************************
   AsyncEventSource_Ethernet.cpp - Dead simple AsyncWebServer for ESP8266 using W5x00/ENC8266 Ethernet
-   
+
   AsyncWebServer_Ethernet is a library for the Ethernet with lwIP_5100, lwIP_5500 or lwIP_enc28j60 library
-  
+
   Based on and modified from ESPAsyncWebServer (https://github.com/me-no-dev/ESPAsyncWebServer)
   Built by Khoi Hoang https://github.com/khoih-prog/AsyncWebServer_Ethernet
-  
+
   Copyright (c) 2016 Hristo Gochkov. All rights reserved.
   This file is part of the esp8266 core for Arduino environment.
-  This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License 
+  This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License
   as published bythe Free Software Foundation, either version 3 of the License, or (at your option) any later version.
   This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
   You should have received a copy of the GNU General Public License along with this program.
-  If not, see <https://www.gnu.org/licenses/>.  
- 
-  Version: 1.5.0
+  If not, see <https://www.gnu.org/licenses/>.
+
+  Version: 1.5.1
 
   Version Modified By   Date      Comments
   ------- -----------  ---------- -----------
   1.4.1   K Hoang      18/03/2022 Initial coding for ESP8266 using W5x00/ENC8266 Ethernet.
                                   Bump up version to v1.4.1 to sync with AsyncWebServer_STM32 v1.4.1
   1.5.0   K Hoang      05/10/2022 Option to use non-destroyed cString instead of String to save Heap
+  1.5.1   K Hoang      10/11/2022 Add examples to demo how to use beginChunkedResponse() to send in chunks
  *****************************************************************************************************************************/
 
 #define _AWS_ETHERNET_LOGLEVEL_     1
@@ -369,7 +370,7 @@ void AsyncEventSourceClient::send(const char *message, const char *event, uint32
 
 /////////////////////////////////////////////////////////
 
-void AsyncEventSourceClient::_runQueue() 
+void AsyncEventSourceClient::_runQueue()
 {
   while (!_messageQueue.isEmpty() && _messageQueue.front()->finished())
   {
@@ -452,7 +453,8 @@ size_t AsyncEventSource::avgPacketsWaiting() const
 
   for (const auto &c : _clients)
   {
-    if (c->connected()) {
+    if (c->connected())
+    {
       aql += c->packetsWaiting();
       ++nConnectedClients;
     }
@@ -489,15 +491,15 @@ size_t AsyncEventSource::count() const
 
 /////////////////////////////////////////////////////////
 
-bool AsyncEventSource::canHandle(AsyncWebServerRequest *request) 
+bool AsyncEventSource::canHandle(AsyncWebServerRequest *request)
 {
-  if (request->method() != HTTP_GET || !request->url().equals(_url)) 
+  if (request->method() != HTTP_GET || !request->url().equals(_url))
   {
     return false;
   }
-  
+
   request->addInterestingHeader("Last-Event-ID");
-  
+
   return true;
 }
 
@@ -516,7 +518,7 @@ void AsyncEventSource::handleRequest(AsyncWebServerRequest *request)
 
 // Response
 
-AsyncEventSourceResponse::AsyncEventSourceResponse(AsyncEventSource *server) 
+AsyncEventSourceResponse::AsyncEventSourceResponse(AsyncEventSource *server)
 {
   _server = server;
   _code = 200;
@@ -528,7 +530,7 @@ AsyncEventSourceResponse::AsyncEventSourceResponse(AsyncEventSource *server)
 
 /////////////////////////////////////////////////////////
 
-void AsyncEventSourceResponse::_respond(AsyncWebServerRequest *request) 
+void AsyncEventSourceResponse::_respond(AsyncWebServerRequest *request)
 {
   String out = _assembleHead(request->version());
   request->client()->write(out.c_str(), _headLength);
@@ -537,13 +539,13 @@ void AsyncEventSourceResponse::_respond(AsyncWebServerRequest *request)
 
 /////////////////////////////////////////////////////////
 
-size_t AsyncEventSourceResponse::_ack(AsyncWebServerRequest *request, size_t len, uint32_t time __attribute__((unused))) 
+size_t AsyncEventSourceResponse::_ack(AsyncWebServerRequest *request, size_t len, uint32_t time __attribute__((unused)))
 {
-  if (len) 
+  if (len)
   {
     new AsyncEventSourceClient(request, _server);
   }
-  
+
   return 0;
 }
 

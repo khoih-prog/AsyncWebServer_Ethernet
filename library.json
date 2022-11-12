@@ -1,8 +1,8 @@
 {
   "name":"AsyncWebServer_Ethernet",
-  "version": "1.5.0",
-  "description":"Asynchronous HTTP and WebSocket Server Library for ESP8266 using W5x00 or ENC28J60 Ethernet. This is Asynchronous HTTP and WebSocket Server Library for ESP8266 using W5x00 or ENC28J60 Ethernet with lwIP_5100, lwIP_5500 or lwIP_enc28j60 library. Now supporting using CString to save heap to send very large data",
-  "keywords":"http, async, async-webserver, websocket, webserver, esp8266, w5x00, enc28j60",
+  "version": "1.5.1",
+  "description":"Asynchronous HTTP and WebSocket Server Library for ESP8266 using W5x00 or ENC28J60 Ethernet. This is Asynchronous HTTP and WebSocket Server Library for ESP8266 using W5x00 or ENC28J60 Ethernet with lwIP_5100, lwIP_5500 or lwIP_enc28j60 library. Now supporting using CString to save heap to send very large data and examples to demo how to use beginChunkedResponse() to send large html in chunks",
+  "keywords":"async, tcp, http, websocket, webserver, async-tcp, async-http, chunk,  async-webserver, async-websocket, esp8266, w5x00, enc28j60",
   "authors": 
   [
     {
@@ -34,5 +34,5 @@
   "frameworks": "arduino",
   "platforms": ["espressif8266"],
   "examples": "examples/*/*/*.ino",
-  "headers": "AsyncWebServer_Ethernet.h"
+  "headers": ["AsyncWebServer_Ethernet.h"]
 }

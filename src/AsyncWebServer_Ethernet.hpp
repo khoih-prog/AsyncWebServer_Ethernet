@@ -15,13 +15,14 @@
   You should have received a copy of the GNU General Public License along with this program.
   If not, see <https://www.gnu.org/licenses/>.  
  
-  Version: 1.5.0
+  Version: 1.5.1
 
   Version Modified By   Date      Comments
   ------- -----------  ---------- -----------
   1.4.1   K Hoang      18/03/2022 Initial coding for ESP8266 using W5x00/ENC8266 Ethernet.
                                   Bump up version to v1.4.1 to sync with AsyncWebServer_STM32 v1.4.1
   1.5.0   K Hoang      05/10/2022 Option to use non-destroyed cString instead of String to save Heap
+  1.5.1   K Hoang      10/11/2022 Add examples to demo how to use beginChunkedResponse() to send in chunks
  *****************************************************************************************************************************/
 
 #ifndef _ASYNC_WEBSERVER_ETHERNET_HPP_
@@ -33,13 +34,13 @@
 
 /////////////////////////////////////////////////////////
 
-#define ASYNC_WEBSERVER_ETHERNET_VERSION           "AsyncWebServer_Ethernet v1.5.0"
+#define ASYNC_WEBSERVER_ETHERNET_VERSION           "AsyncWebServer_Ethernet v1.5.1"
 
 #define ASYNC_WEBSERVER_ETHERNET_VERSION_MAJOR     1
 #define ASYNC_WEBSERVER_ETHERNET_VERSION_MINOR     5
-#define ASYNC_WEBSERVER_ETHERNET_VERSION_PATCH     0
+#define ASYNC_WEBSERVER_ETHERNET_VERSION_PATCH     1
 
-#define ASYNC_WEBSERVER_ETHERNET_VERSION_INT       1005000
+#define ASYNC_WEBSERVER_ETHERNET_VERSION_INT       1005001
 
 /////////////////////////////////////////////////////////
 
